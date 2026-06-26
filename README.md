@@ -68,7 +68,7 @@ crossOriginIsolated // must be true
 
 ## Live demo
 
-_Coming soon._
+https://charming-paletas-c95a3f.netlify.app
 
 ## Research record
 
