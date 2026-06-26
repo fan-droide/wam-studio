@@ -1,14 +1,88 @@
-# Wam-Studio
-Updated September 7, 2023
+# WAM Studio — latency-test fork
 
-Wam-Studio’s is an online tool for creating audio projects that you can imagine as multi-track music. Each track corresponds to a different "layer" of audio content that can be recorded, edited, or just integrated (using audio files for example). Some track can be used to control virtual instruments: in that case we record the sound that is generated internally by these virtual instruments (and played using a MIDI piano keyboard, for example). Tracks can be added or removed, played isolated or with other tracks. They can also be "armed" for recording, and when the recording starts, all other tracks will play along, while the armed track will record new content.
+> Fork of [Brotherta/wam-studio](https://github.com/Brotherta/wam-studio).
+> See the [upstream README](https://github.com/Brotherta/wam-studio#readme) for the full project description, citation, and Docker instructions.
 
-Current features: robust audio track recording, track regions, loop area on tracks, track plugin fx chain, parameter automation, audio input and output device selection, latency measuring tool + inout latency compensation when recording, project saving on cloud (audio + all metadata), rendering mix with choice of tracks to render, viewport management on tracks (zoom in/out) using pixiJS/WebGL canvas.
+## Purpose
 
-<img width="800" alt="image" src="https://i.ibb.co/DkzGZrc/Wam-Studio-Sept2023.jpg">
-### Citation
+This fork replaces WAM Studio's built-in threshold-based latency calibration
+tool with [`<latency-test>`](https://github.com/idsinge/latency-test)
+(`@adasp/latency-test`), which measures round-trip audio latency using an MLS
+signal and cross-correlation.
 
-If you use our resource, please cite the following articles:
+It also fixes a formula bug in the original calibration: the old implementation
+subtracted `outputLatency` from the measured round-trip, leaving a residual
+offset in recorded tracks. This fork uses the full round-trip value directly,
+which is what `SampleRegionRecorder` needs to align a recording correctly.
+
+The fork is a research deliverable of the [Hi-Audio project](https://hiaudio.fr)
+and serves as a working showcase for a proposed upstream PR to
+[Brotherta/wam-studio](https://github.com/Brotherta/wam-studio).
+
+## What changed
+
+| File | Change |
+|---|---|
+| `public/src/Controllers/LatencyController.ts` | Rewritten — uses `<latency-test>` instead of the original threshold-based AudioWorklet peak-detector |
+| `public/src/Audio/LatencyProcessor.js` | Deleted — replaced by the component |
+| `public/package.json` | Added `@adasp/latency-test@1.2.0` |
+
+Key behaviour changes:
+- 3-run MLS/cross-correlation measurement instead of single-shot threshold detection
+- Reliability gate: prior calibration left untouched if any run is unreliable or the user stops early
+- Race-safe: stale-element guards prevent a rejected async operation from clobbering a newer calibration run
+- Uses the main `AudioContext` (not a fresh one) — same output sink, sample rate, and `outputLatency` as the recording pipeline
+
+## Quick start
+
+```bash
+cd public
+npm install
+cp /dev/null .env   # empty .env is fine — defaults apply
+npm start           # → http://localhost:5002
+```
+
+Requires a microphone and headphones. The backend bank/plugin server is **not
+needed** for the latency calibration demo. One failed login fetch at startup is
+expected and harmless.
+
+## Browser requirements
+
+This app uses `SharedArrayBuffer`, which requires [cross-origin isolation](https://developer.mozilla.org/en-US/docs/Web/API/crossOriginIsolated).
+The server **must** respond with:
+
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+```
+
+The webpack dev server (`npm start`) sets these automatically. For production,
+the `netlify.toml` in this repo configures them for Netlify deployments, or run
+`node server.js` (which sets them via Express).
+
+You can verify cross-origin isolation is active in the browser console:
+
+```js
+crossOriginIsolated // must be true
+```
+
+## Live demo
+
+_Coming soon._
+
+## Research record
+
+- Implementation notes and findings:
+  [`demos/wam-studio/NOTES.md`](https://github.com/idsinge/latency-test-examples/blob/main/demos/wam-studio/NOTES.md)
+  in [idsinge/latency-test-examples](https://github.com/idsinge/latency-test-examples)
+- `<latency-test>` component source and API docs:
+  [idsinge/latency-test](https://github.com/idsinge/latency-test)
+
+## Attribution
+
+This fork builds on [WAM Studio](https://github.com/Brotherta/wam-studio) by
+Michel Buffa and Antoine Vidal-Mazuy (Université Côte d'Azur / Inria). Please
+cite the upstream work if you use this:
 
 ```
 @inproceedings{buffa2023wam,
@@ -19,47 +93,7 @@ If you use our resource, please cite the following articles:
   year={2023}
 }
 ```
-# Running guide
 
-## Running the Application Locally
-
-### Frontend
-1. Navigate to the `public` folder.
-2. Install dependencies by running `npm install`.
-3. Create a `.env` file in the root directory of the `public` folder.
-4. Configure the following variables in the `.env` file:
-   - `PORT`: The port number that the frontend server will run on. For example, `5002`.
-   - `HTTPS`: Set this to `true` if you want to enable HTTPS. If `true`, you must create a certificate and set the `SSL_CRT_FILE` and `SSL_KEY_FILE` variables.
-   - `BACKEND_URL`: The URL of the backend server. For example, `http://localhost:6002`.
-   - `BANK_PLUGIN_URL`: The URL of the bank plugin. For example, `http://localhost:6002`.
-5. Start the frontend server by running `npm start`.
-
-### Back-end (Bank Plugin)
-1. Navigate to the `bank` folder.
-2. Install dependencies by running `npm install`.
-3. Create a `.env.local` file in the root directory of the `bank` folder.
-4. Configure the following variables in the `.env.local` file:
-   - `PORT`: The port number that the bank plugin server will run on. For example, `6002`.
-   - `STORAGE_DIR`: The directory where the bank plugin will store data. For example, `storage`.
-   - `ADMIN_PASSWORD`: The password for the admin user.
-   - `JWT_SECRET`: The secret for JSON Web Tokens (JWT).
-   - `NODE_ENV`: The environment that the bank plugin is running in. For example, `development`.
-5. Start the bank plugin server by running `npm start`.
-
-## Running the Application with Docker
-1. Install Docker on your machine if you haven't already.
-2. Clone the project repository to your local machine.
-3. Navigate to the root directory of the project.
-4. Start the application with Docker by running `docker-compose up`.
-5. Docker will read the `docker-compose.yml` file to build and run the containers.
-6. Configure the following variables in the `docker-compose.yml` file:
-   - `HTTPS`: Set this to `false` to disable HTTPS. If `true`, you must create a certificate and set the `SSL_CRT_FILE` and `SSL_KEY_FILE`
-   - `BACKEND_URL`: The URL of the backend server. For example, `http://localhost:6002`.
-   - `BANK_PLUGIN_URL`: The URL of the bank plugin. For example, `http://localhost:7002`.
-   - `STORAGE_DIR`: The directory where the backend will store data. For example, `/data/storage` (inside the volume).
-   - `ADMIN_PASSWORD`: The password for the admin user.
-   - `JWT_SECRET`: The secret for JSON Web Tokens (JWT).
-
-Note : The server and the plugin bank can be hosted elsewhere, in that case do not forget to provide the URLs in the public `.env` or in the `docker-compose.yml`.
-
-That's it! The application should now be running. You can access the frontend by going to `http://localhost:5002` in your web browser.
+This fork is part of *Hybrid and Interpretable Deep Neural Audio Machines*
+(Hi-Audio), funded by the European Research Council (ERC) under Horizon Europe
+(grant agreement No. 101052978).

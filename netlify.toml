@@ -1,0 +1,15 @@
+[build]
+  base    = "public"
+  command = "npm ci && npm run build"
+  publish = "dist"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cross-Origin-Opener-Policy  = "same-origin"
+    Cross-Origin-Embedder-Policy = "require-corp"
+
+[[headers]]
+  for = "/shareable/*"
+  [headers.values]
+    Cross-Origin-Resource-Policy = "cross-origin"
