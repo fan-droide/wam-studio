@@ -1,5 +1,4 @@
 import App from "../App";
-import HostView from "../Views/HostView";
 import LatencyView from "../Views/LatencyView";
 import { audioCtx } from "../index";
 import '@adasp/latency-test';
@@ -17,10 +16,6 @@ export default class LatencyController {
      */
     private _view: LatencyView;
     /**
-     * Host view.
-     */
-    private _hostView: HostView;
-    /**
      * Active <latency-test> element during calibration.
      */
     private _latencyEl: LatencyTestElement | null = null;
@@ -36,7 +31,6 @@ export default class LatencyController {
     constructor(app: App) {
         this._app = app;
         this._view = app.latencyView;
-        this._hostView = app.hostView;
         this._calibrating = false;
 
         this.getLocalStorages();
@@ -176,6 +170,7 @@ export default class LatencyController {
         try {
             await el.start();
         } catch (err) {
+            if (this._latencyEl !== el) return;
             console.error('Calibration: el.start() failed:', err);
             this._cleanupLatencyTest();
             this._calibrating = false;
@@ -186,10 +181,8 @@ export default class LatencyController {
     private _cleanupLatencyTest(): void {
         this._calibStream?.getTracks().forEach(t => t.stop());
         this._calibStream = null;
-        if (this._latencyEl) {
-            this._latencyEl.remove();
-            this._latencyEl = null;
-        }
+        this._latencyEl?.remove();
+        this._latencyEl = null;
     }
 
     /**
@@ -200,8 +193,8 @@ export default class LatencyController {
         this._view.calibrationButton.innerText = 'Stop Calibration';
         try {
             await this.setupLatencyTest();
-        } catch (err) {
-            // getUserMedia failed or other setup error — already cleaned up in setupLatencyTest
+        } catch (_err) {
+            // getUserMedia failed or other setup error — already logged and cleaned up in setupLatencyTest
             this._calibrating = false;
             this._view.calibrationButton.innerText = 'Calibrate Latency';
         }
