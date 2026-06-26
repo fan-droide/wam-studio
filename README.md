@@ -25,7 +25,7 @@ and serves as a working showcase for a proposed upstream PR to
 |---|---|
 | `public/src/Controllers/LatencyController.ts` | Rewritten — uses `<latency-test>` instead of the original threshold-based AudioWorklet peak-detector |
 | `public/src/Audio/LatencyProcessor.js` | Deleted — replaced by the component |
-| `public/package.json` | Added `@adasp/latency-test@1.2.0` |
+| `public/package.json` | Added `@adasp/latency-test@1.2.1` |
 
 Key behaviour changes:
 - 3-run MLS/cross-correlation measurement instead of single-shot threshold detection
